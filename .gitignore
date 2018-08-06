@@ -1,0 +1,11 @@
+.cache
+.coverage
+build/
+dist/
+*.pyc
+ngsindex.egg-info/
+docs/_build/
+.vscode*
+.mypy_cache/
+.idea/
+.pytest_cache/
