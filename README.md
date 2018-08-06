@@ -16,13 +16,13 @@ pip install ngsindex
 # Usage
 
 ```python
-from ngsindex import resolve_index_file, parse_index
+from ngsindex import IndexType ,resolve_index_file, parse_index
 from pathlib import Path
 
 bam_file = Path('/path/to/reads.bam')
 
 # Resolve the location of the BAM index file.
-index_file = resolve_index_file(bam_file)
+index_file = resolve_index_file(bam_file, IndexType.BAI)
 
 # Load the index
 index = parse_index(index_file)
