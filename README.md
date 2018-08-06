@@ -16,7 +16,7 @@ pip install ngsindex
 # Usage
 
 ```python
-from ngsindex import IndexType ,resolve_index_file, parse_index
+from ngsindex import IndexType, resolve_index_file, parse_index
 from pathlib import Path
 
 bam_file = Path('/path/to/reads.bam')
