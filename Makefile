@@ -1,4 +1,4 @@
-module = atropos
+module = ngsindex
 #pytestops = "--full-trace"
 #pytestops = "-v -s"
 repo = jdidion/$(module)
