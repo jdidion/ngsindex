@@ -682,7 +682,7 @@ class CsiIndex(Index):
         kwargs: Additional keyword arguments to pass to the Index constructor.
 
     See:
-        https://samtools.github.io/hts-specs/CSIv2.pdf
+        * https://samtools.github.io/hts-specs/CSIv2.pdf
 
     TODO:
         Add reg2bin and reg2bins functions from the CSI spec.

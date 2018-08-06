@@ -2,9 +2,9 @@
 
 Support for reading various NGS-related index formats:
 
-* BAI
-* TBI
-* CSI
+* [BAI](https://samtools.github.io/hts-specs/SAMv1.pdf)
+* [TBI](https://samtools.github.io/hts-specs/tabix.pdf)
+* [CSI](https://samtools.github.io/hts-specs/CSIv2.pdf)
 
 
 # Installation
