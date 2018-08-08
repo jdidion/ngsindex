@@ -21,10 +21,6 @@ del get_versions
 
 METADATA_BIN_NUM = 37450
 """Magic number of bins in BAM indexes that contain chromosome metadata."""
-BGZF_BLOCK_SIZE = 2 ** 16
-"""Size of a BGZF block in bytes."""
-INTERVAL_LEN = 2 ** 14
-"""Length of an index interval in bases."""
 TERMINATOR = b"\x00"
 """Terminator character used in Index file."""
 
@@ -116,8 +112,8 @@ class Chunk:
         """
         return self.begin.as_tuple(), self.end.as_tuple()
 
-    def __eq__(self, other) -> bool:
-        return self.begin == other.begin and self.end == other.end
+    def __eq__(self, other: "Chunk") -> bool:
+        return self.as_tuple() == other.as_tuple()
 
     def __repr__(self) -> str:
         return f"Chunk{self.as_tuple()}"
@@ -717,6 +713,21 @@ class CsiIndex(Index):
             and self.depth == other.depth
             and self.aux == other.aux
         )
+
+
+def resolve_and_parse_index(primary_file: Path, index_type: IndexType) -> Index:
+    """Shortcut for
+    parse_index(resolve_index_file(parimary_file, index_type), index_type)
+
+    Args:
+        primary_file: The primary file with the index to resolve.
+        index_type: The type of index.
+
+    Returns:
+        An Index object.
+    """
+    index_file = resolve_index_file(primary_file, index_type, error=True)
+    return parse_index(index_file, index_type)
 
 
 def resolve_index_file(
