@@ -13,7 +13,7 @@ from ngsindex.utils import BinReader
 
 # pylint: disable=protected-access
 # noinspection PyProtectedMember
-from xphyle._version import get_versions
+from ngsindex._version import get_versions
 
 __version__ = get_versions()["version"]
 del get_versions
