@@ -280,6 +280,10 @@ class BinReader:
             reads all of the required bytes (nbytes * n) in a single read
             operation.
         """
+        if not self.is_open:
+            raise RuntimeError(
+                "Must call 'open' on BinReader before calling any read methods."
+            )
         total = nbytes * n
         bytestr = self._reader.read(total)
         if len(bytestr) < total:

@@ -30,6 +30,9 @@ clean:
 	rm -Rf dist
 	rm -Rf build
 	rm -Rf *.egg-info
+	rm -Rf .pytest_cache
+	rm -Rf .coverage
+
 
 release:
 	$(clean)

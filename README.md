@@ -6,7 +6,6 @@ Support for reading various NGS-related index formats:
 * [TBI](https://samtools.github.io/hts-specs/tabix.pdf)
 * [CSI](https://samtools.github.io/hts-specs/CSIv2.pdf)
 
-
 # Installation
 
 ```bash
@@ -31,3 +30,7 @@ index = parse_index(index_file)
 for refidx in index.ref_indexes:
     ...
 ```
+
+# Limitations
+
+CRAM files are not yet supported (neither .crai nor .bai index files).

@@ -3,8 +3,7 @@ import sys
 import versioneer
 
 
-version_info = sys.version_info
-if version_info < (3, 6):
+if sys.version_info < (3, 6):
     sys.stdout.write("ngsindex requires python3.6.\n")
     sys.exit(1)
 
@@ -20,7 +19,7 @@ setup(
     license='MIT',
     packages=['ngsindex'],
     install_requires=[
-        'xphyle',
+        'xphyle>=4.0.0rc0',
         'pysam'
     ],
     tests_require=[
