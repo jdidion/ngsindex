@@ -7,7 +7,7 @@ Notes:
 from abc import ABCMeta, abstractmethod
 from enum import Enum
 from pathlib import Path
-from typing import Tuple, Sequence, Union, Iterator, Dict, Optional
+from typing import Tuple, Sequence, Union, Iterator, Dict, Optional, cast
 
 from ngsindex.utils import BinReader
 
@@ -439,6 +439,7 @@ class Index(metaclass=ABCMeta):
         ref_indexes: Sequence of RefIndex objects.
         num_unmapped: Number of unmapped reads.
     """
+    index_type: IndexType = None
 
     def __init__(
         self,
@@ -519,6 +520,14 @@ class Index(metaclass=ABCMeta):
         """
         pass  # pragma: no-cover
 
+    def summarize(self) -> dict:
+        """Summarize this index and return a dict that can be serialized to JSON.
+        """
+        return {
+            "num_references": self.num_ref,
+            "num_unmapped": self.num_unmapped
+        }
+
     def __eq__(self, other: "Index") -> bool:
         return (
             self.version == other.version
@@ -538,6 +547,7 @@ class BaiIndex(Index):
     See:
         * https://samtools.github.io/hts-specs/SAMv1.pdf
     """
+    index_type = IndexType.BAI
 
     def parse_header(self, reader: BinReader) -> int:
         # The only thing in the BAI header is the number of reference seqs
@@ -545,6 +555,21 @@ class BaiIndex(Index):
 
     def create_ref_index(self, reader: BinReader, reference_id: int) -> RefIndex:
         return BaiRefIndex(reader, reference_id)
+
+    def summarize(self) -> dict:
+        """Create a summary equivalent to samtools idxstats.
+
+        Returns:
+            Summary dict.
+        """
+        summary = super().summarize()
+        summary["read_counts"] = []
+        for ref_idx in self.ref_indexes:
+            bai_ref_idx = cast(BaiRefIndex, ref_idx)
+            summary["read_counts"].append(
+                (bai_ref_idx.num_mapped, bai_ref_idx.num_unmapped)
+            )
+        return summary
 
 
 class TbiIndex(Index):
@@ -568,6 +593,7 @@ class TbiIndex(Index):
     TODO:
         Add reg2bin and reg2bins functions from the tabix spec.
     """
+    index_type = IndexType.TBI
 
     def __init__(
         self,
@@ -683,6 +709,7 @@ class CsiIndex(Index):
     TODO:
         Add reg2bin and reg2bins functions from the CSI spec.
     """
+    index_type = IndexType.CSI
 
     def __init__(
         self,
@@ -732,7 +759,7 @@ def resolve_and_parse_index(primary_file: Path, index_type: IndexType) -> Index:
 
 def resolve_index_file(
     primary_file: Path, index_type: IndexType, index_file: Path = None,
-    error: bool = False
+    error: bool = False, create: bool = False
 ) -> Union[Path, None]:
     """Resolve the path of an index file that accompanies `primary_file`.
 
@@ -741,6 +768,7 @@ def resolve_index_file(
         index_type: The type of index to resolve.
         index_file: The index file. If None, the index file is assumed to be
             <primary_file>.<ext>.
+        create: Whether to create the index if it does not exist.
         error: Whether to raise an error if the index file does not exist.
 
     Raises:
@@ -751,11 +779,18 @@ def resolve_index_file(
     """
     if not index_file:
         index_file = Path(f"{str(primary_file)}.{index_type.value.lower()}")
-    if index_file.exists():
-        return index_file
-    elif error:
-        raise MissingIndexError(f"Index file {index_file} does not exist")
-    return None
+    if not index_file.exists() and create:
+        try:
+            import pysam
+            pysam.index(str(index_file))
+        except:
+            pass
+    if not index_file.exists():
+        if error:
+            raise MissingIndexError(f"Index file {index_file} does not exist")
+        else:
+            return None
+    return index_file
 
 
 def parse_index(
