@@ -905,7 +905,7 @@ def resolve_index_file(
     """
     if not index_file:
         if index_type:
-            index_file = Path(f"{str(primary_file)}.{index_type.value.lower()}")
+            index_file = Path(f"{str(primary_file)}.{index_type.name.lower()}")
         else:
             raise ValueError(
                 "'index_type' must be specified if 'index_file' is None"
