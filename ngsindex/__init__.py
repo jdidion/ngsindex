@@ -7,7 +7,7 @@ Notes:
 from abc import ABCMeta, abstractmethod
 from enum import Enum
 from pathlib import Path
-from typing import Tuple, Sequence, Union, Iterator, Dict, Optional, cast
+from typing import Dict, Iterator, Optional, Sequence, Tuple, Type, Union, cast
 
 from ngsindex.utils import BinReader
 
@@ -33,15 +33,6 @@ class MissingIndexError(Exception):
     """
 
     pass
-
-
-class IndexType(Enum):
-    """Enumeration of supported index types.
-    """
-
-    BAI = "BAI"
-    CSI = "CSI"
-    TBI = "TBI"
 
 
 class Offset:
@@ -435,11 +426,56 @@ class Index(metaclass=ABCMeta):
     Args:
         reader: The BinReader from which to read.
         version: Version of the index specification.
+    """
+
+    def __init__(
+        self,
+        reader: Optional[BinReader] = None,
+        version: Optional[int] = None
+    ) -> None:
+        self.version = version
+        if reader:
+            self.read_from(reader)
+
+    @classmethod
+    def index_type(cls) -> "IndexType":
+        return IndexType.from_class(cls)
+
+    def read_from(self, reader: BinReader) -> None:
+        """Initializes this Index from `reader`.
+
+        Args:
+            reader: The BinReader from which to read.
+        """
+        self.version = reader.read_byte()
+
+    @abstractmethod
+    def summarize(self) -> dict:
+        """Summarize this index and return a dict that can be serialized to JSON.
+        """
+        pass
+
+    def __eq__(self, other: "Index") -> bool:
+        return (
+            self.index_type() == other.index_type()
+            and self.version == other.version
+        )
+
+    def __repr__(self) -> str:
+        type_name = self.index_type().name
+        return f"{type_name}(v{self.version})"
+
+
+class CoordinateIndex(Index):
+    """Base class for formats that index by coordinate.
+
+    Args:
+        reader: The BinReader from which to read.
+        version: Version of the index specification.
         num_ref: Number of reference sequences.
         ref_indexes: Sequence of RefIndex objects.
         num_unmapped: Number of unmapped reads.
     """
-    index_type: IndexType = None
 
     def __init__(
         self,
@@ -449,12 +485,10 @@ class Index(metaclass=ABCMeta):
         ref_indexes: Optional[Sequence[RefIndex]] = None,
         num_unmapped: Optional[int] = None,
     ) -> None:
-        self.version = version
         self._num_ref = num_ref
         self.ref_indexes = ref_indexes
         self.num_unmapped = num_unmapped
-        if reader:
-            self.read_from(reader)
+        super().__init__(reader, version)
 
     @property
     def num_ref(self) -> int:
@@ -476,7 +510,8 @@ class Index(metaclass=ABCMeta):
         Args:
             reader: The BinReader from which to read.
         """
-        self.version = reader.read_byte()
+
+        super().read_from(reader)
 
         # Each type of index has its own header format.
         self._num_ref = self.parse_header(reader)
@@ -528,9 +563,9 @@ class Index(metaclass=ABCMeta):
             "num_unmapped": self.num_unmapped
         }
 
-    def __eq__(self, other: "Index") -> bool:
+    def __eq__(self, other: "CoordinateIndex") -> bool:
         return (
-            self.version == other.version
+            super().__eq__(other)
             and self.num_ref == other.num_ref
             and self.ref_indexes == other.ref_indexes
             and self.num_unmapped == other.num_unmapped
@@ -541,13 +576,12 @@ class Index(metaclass=ABCMeta):
         return f"{type_name}(v{self.version}): {self.ref_indexes}"
 
 
-class BaiIndex(Index):
+class BaiIndex(CoordinateIndex):
     """Index subclass for BAI format.
 
     See:
         * https://samtools.github.io/hts-specs/SAMv1.pdf
     """
-    index_type = IndexType.BAI
 
     def parse_header(self, reader: BinReader) -> int:
         # The only thing in the BAI header is the number of reference seqs
@@ -572,7 +606,7 @@ class BaiIndex(Index):
         return summary
 
 
-class TbiIndex(Index):
+class TbiIndex(CoordinateIndex):
     """Index subclass for TBI format.
 
     Args:
@@ -593,7 +627,6 @@ class TbiIndex(Index):
     TODO:
         Add reg2bin and reg2bins functions from the tabix spec.
     """
-    index_type = IndexType.TBI
 
     def __init__(
         self,
@@ -693,7 +726,7 @@ class TbiIndex(Index):
         )
 
 
-class CsiIndex(Index):
+class CsiIndex(CoordinateIndex):
     """Index subclass for CSI format.
 
     Args:
@@ -709,7 +742,6 @@ class CsiIndex(Index):
     TODO:
         Add reg2bin and reg2bins functions from the CSI spec.
     """
-    index_type = IndexType.CSI
 
     def __init__(
         self,
@@ -742,6 +774,101 @@ class CsiIndex(Index):
         )
 
 
+class SbiIndex(Index):
+    """Index subclass for SBI format. Note that this is a proposed format based
+    on Hadoop SBI - it is not yet accepted as part of the SAM specification.
+
+    Args:
+        file_length:
+        md5:
+        uuid:
+        num_records:
+        granularity:
+        num_offsets:
+        kwargs: Additional keyword arguments to pass to the Index constructor.
+
+    See:
+        * https://github.com/tomwhite/hts-specs/blob/sbi/SAMv1.tex
+    """
+
+    def __init__(
+        self,
+        file_length: Optional[int] = None,
+        md5: Optional[bytes] = None,
+        uuid: Optional[bytes] = None,
+        num_records: Optional[int] = None,
+        granularity: Optional[int] = None,
+        num_offsets: Optional[int] = None,
+        offsets: Optional[Sequence[Offset]] = None,
+        **kwargs
+    ):
+        self.file_length = file_length
+        self.md5 = md5
+        self.uuid = uuid
+        self.num_records = num_records
+        self.granularity = granularity
+        self.num_offsets = num_offsets
+        self.offsets = offsets
+        super().__init__(**kwargs)
+
+    def read_from(self, reader: BinReader) -> None:
+        super().read_from(reader)
+
+        self.file_length = reader.read_ull()
+        self.md5 = reader.read_string(16)
+        self.uuid = reader.read_string(16)
+        self.num_records = reader.read_ull()
+        self.granularity = reader.read_ull()
+        self.num_offsets = reader.read_ull()
+
+        self.offsets = [
+            Offset(offset)
+            for offset in reader.read_ulls(self.num_offsets)
+        ]
+
+    def summarize(self) -> dict:
+        return {
+            "file_length": self.file_length,
+            "num_records": self.num_records,
+            "granularity": self.granularity,
+            "num_offsets": self.num_offsets
+        }
+
+
+class IndexType(Enum):
+    """Enumeration of supported index types.
+    """
+
+    BAI = "BAI", BaiIndex
+    CSI = "CSI", CsiIndex
+    TBI = "TBI", TbiIndex
+    SBI = "SBI", SbiIndex
+
+    @property
+    def name(self) -> str:
+        return self.value[0]
+
+    @property
+    def index_class(self) -> Type[CoordinateIndex]:
+        return self.value[1]
+
+    @staticmethod
+    def from_name(name: str) -> "IndexType":
+        for index_type in IndexType:
+            if index_type.name == name:
+                return index_type
+        else:
+            raise ValueError(f"No index type '{name}'")
+
+    @staticmethod
+    def from_class(cls) -> "IndexType":
+        for index_type in IndexType:
+            if index_type.index_class == cls:
+                return index_type
+        else:
+            raise ValueError(f"No index type for class '{cls}'")
+
+
 def resolve_and_parse_index(primary_file: Path, index_type: IndexType) -> Index:
     """Shortcut for
     parse_index(resolve_index_file(parimary_file, index_type), index_type)
@@ -758,14 +885,15 @@ def resolve_and_parse_index(primary_file: Path, index_type: IndexType) -> Index:
 
 
 def resolve_index_file(
-    primary_file: Path, index_type: IndexType, index_file: Path = None,
-    error: bool = False, create: bool = False
+    primary_file: Path, index_type: Optional[IndexType] = None,
+    index_file: Optional[Path] = None, error: bool = False, create: bool = False
 ) -> Union[Path, None]:
     """Resolve the path of an index file that accompanies `primary_file`.
 
     Args:
         primary_file: The primary file to resolve.
-        index_type: The type of index to resolve.
+        index_type: The type of index to resolve. If None, `index_file` must
+            not be None.
         index_file: The index file. If None, the index file is assumed to be
             <primary_file>.<ext>.
         create: Whether to create the index if it does not exist.
@@ -774,11 +902,14 @@ def resolve_index_file(
     Raises:
         MissingIndexError if the index file does not exist and `error` is
         True.
-
-    TODO: auto-detect index type from the primary file extension.
     """
     if not index_file:
-        index_file = Path(f"{str(primary_file)}.{index_type.value.lower()}")
+        if index_type:
+            index_file = Path(f"{str(primary_file)}.{index_type.value.lower()}")
+        else:
+            raise ValueError(
+                "'index_type' must be specified if 'index_file' is None"
+            )
     if not index_file.exists() and create:
         try:
             import pysam
@@ -794,7 +925,7 @@ def resolve_index_file(
 
 
 def parse_index(
-    path: Optional[Path] = None, index_type: IndexType = None, **kwargs
+    path: Optional[Path] = None, index_type: Optional[IndexType] = None, **kwargs
 ) -> Index:
     """Parse an index file and return an `Index` subclass.
 
@@ -811,7 +942,7 @@ def parse_index(
         # First three bytes are a 'magic' value (the index type).
         magic = reader.read_string(3, True)
         try:
-            detected_type = IndexType(magic)
+            detected_type = IndexType.from_name(magic)
         except ValueError:
             raise ValueError(f"Unsupported index type: {magic}")
 
@@ -820,9 +951,4 @@ def parse_index(
                 f"Expected index type {index_type} does not match actual type {magic}"
             )
 
-        if detected_type == IndexType.BAI:
-            return BaiIndex(reader=reader)
-        elif detected_type == IndexType.CSI:
-            return CsiIndex(reader=reader)
-        elif detected_type == IndexType.TBI:
-            return TbiIndex(reader=reader)
+        return detected_type.index_class(reader=reader)

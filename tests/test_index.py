@@ -8,7 +8,7 @@ import io
 from . import IndexTestData, ChunkTestData, ChunkTestDataSet
 from ngsindex import (
     Offset, Bin, Chunk, CsiRefIndex, BaiRefIndex, DualRefIndex,
-    Index, BaiIndex, CsiIndex, TbiIndex, MissingIndexError, IndexType,
+    CoordinateIndex, BaiIndex, CsiIndex, TbiIndex, MissingIndexError, IndexType,
     resolve_index_file, parse_index
 )
 
@@ -117,7 +117,7 @@ def _test_parse(index_data: IndexTestData):
         return index
 
 
-def _test_chunk(index: Index, test_data: ChunkTestData):
+def _test_chunk(index: CoordinateIndex, test_data: ChunkTestData):
     ref = index[test_data.ref_index]
     actual = list(ref.iter_chunks())[test_data.begin:test_data.end]
     if actual is None and test_data.expect is None:

@@ -8,7 +8,7 @@ desc = ''
 # Use this option to show full stack trace for errors
 #pytestopts = "--full-trace"
 
-BUILD = python setup.py install
+BUILD = python setup.py install --force
 TEST  = py.test -m "not perf" -vv --cov --cov-report term-missing $(pytestopts) $(tests)
 
 all:

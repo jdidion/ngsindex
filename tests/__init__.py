@@ -9,7 +9,7 @@ from ngsindex import *
 class IndexTestData:
     name: str
     data: Sequence[int]
-    expect: Index
+    expect: CoordinateIndex
     err: Exception = None
 
     def parse(self):

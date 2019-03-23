@@ -33,4 +33,10 @@ for refidx in index.ref_indexes:
 
 # Limitations
 
-CRAM files are not yet supported (neither .crai nor .bai index files).
+* CRAM files are not yet supported (neither .crai nor .bai index files).
+
+# Todo
+
+* Add support for splitting BAI:
+  * https://github.com/samtools/hts-specs/pull/321
+  * https://github.com/tomwhite/hts-specs/blob/sbi/SAMv1.tex
