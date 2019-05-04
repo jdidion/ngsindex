@@ -1,5 +1,9 @@
 # Changes
 
+## 0.1.5
+
+* Add iter_intervals method to BaiIndex
+
 ## 0.1.4
 
 * Add CLI
