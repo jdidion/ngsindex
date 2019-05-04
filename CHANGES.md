@@ -1,5 +1,10 @@
 # Changes
 
+## 0.1.6
+
+* Fixed parsing of num_mapped and num_unmapped 
+* Add `empty` property to `Offset`
+
 ## 0.1.5
 
 * Add iter_intervals method to BaiIndex

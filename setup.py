@@ -38,7 +38,7 @@ setup(
         'dataclasses'
     ],
     entry_points={
-        "console_script": [
+        "console_scripts": [
             "summarize-index=ngsindex.cli:summarize"
         ]
     },

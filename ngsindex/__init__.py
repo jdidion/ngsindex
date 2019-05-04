@@ -64,6 +64,14 @@ class Offset:
         else:
             raise ValueError("Must specify either offset or file_offset+block_offset")
 
+    @property
+    def empty(self) -> bool:
+        """
+        If the virtual file offset of a bin is 0, it indicates that the
+        bin is empty (i.e. no reads overlap the bin).
+        """
+        return self.offset == 0
+
     def as_tuple(self) -> Coordinates:
         """Gets the offset as a tuple.
 
@@ -365,6 +373,7 @@ class DualRefIndex(RefIndex):
         """
         super().read_from(reader)
         num_intervals = reader.read_int()
+        print(num_intervals)
         self.intervals = DualRefIndex.read_intervals(reader, num_intervals)
 
     def read_bins(self, reader: BinReader, num_bins: int) -> Sequence[Bin]:
@@ -414,7 +423,8 @@ class BaiRefIndex(DualRefIndex):
             b = Bin(reader)
             if b.bin_num == METADATA_BIN_NUM:
                 self.unmapped_begin, self.unmapped_end = b.chunks[0].as_tuple()
-                self.num_mapped, self.num_unmapped = b.chunks[1].as_tuple()
+                self.num_mapped = b.chunks[1].begin.offset
+                self.num_unmapped = b.chunks[1].end.offset
             else:
                 bins.append(b)
         return bins
@@ -601,12 +611,12 @@ class BaiIndex(CoordinateIndex):
             Summary dict.
         """
         summary = super().summarize()
-        summary["read_counts"] = []
+        summary["read_counts"] = {}
         for ref_idx in self.ref_indexes:
             bai_ref_idx = cast(BaiRefIndex, ref_idx)
-            summary["read_counts"].append(
-                (bai_ref_idx.num_mapped, bai_ref_idx.num_unmapped)
-            )
+            summary["read_counts"][ref_idx.reference_id] = [
+                bai_ref_idx.num_mapped, bai_ref_idx.num_unmapped
+            ]
         return summary
 
 
