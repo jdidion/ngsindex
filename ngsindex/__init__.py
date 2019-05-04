@@ -590,6 +590,10 @@ class BaiIndex(CoordinateIndex):
     def create_ref_index(self, reader: BinReader, reference_id: int) -> RefIndex:
         return BaiRefIndex(reader, reference_id)
 
+    def iter_intervals(self) -> Iterator[Offset]:
+        for ref_index in self.ref_indexes:
+            yield from cast(DualRefIndex, ref_index).intervals
+
     def summarize(self) -> dict:
         """Create a summary equivalent to samtools idxstats.
 
