@@ -1,5 +1,9 @@
 # Changes
 
+## 0.1.7
+
+* Remove debug code
+
 ## 0.1.6
 
 * Fixed parsing of num_mapped and num_unmapped 

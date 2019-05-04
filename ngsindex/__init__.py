@@ -373,7 +373,6 @@ class DualRefIndex(RefIndex):
         """
         super().read_from(reader)
         num_intervals = reader.read_int()
-        print(num_intervals)
         self.intervals = DualRefIndex.read_intervals(reader, num_intervals)
 
     def read_bins(self, reader: BinReader, num_bins: int) -> Sequence[Bin]:
