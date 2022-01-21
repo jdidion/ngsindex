@@ -1,5 +1,6 @@
 """Supporting classes.
 """
+import os
 from pathlib import Path
 from struct import Struct
 from typing import Sequence, Tuple, Union, Optional, Any, cast
@@ -141,6 +142,14 @@ class BinReader:
         else:
             return lambda: self._read_array(name)[0]
 
+    def seek(self, pos: int):
+        """Move to the specified position in the file."""
+        self._reader.seek(pos, os.SEEK_SET)
+
+    def skip(self, n: int):
+        """Move forward `n` bytes without reading."""
+        self._reader.seek(n, os.SEEK_CUR)
+    
     def read_string(
         self, strlen: int, encoding: Optional[Union[bool, str]] = None
     ) -> Union[str, bytes]:
