@@ -9,3 +9,5 @@ docs/_build/
 .mypy_cache/
 .idea/
 .pytest_cache/
+# oh-my-claudecode scratch
+.omc/
