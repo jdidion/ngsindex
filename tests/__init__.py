@@ -1,6 +1,7 @@
-from dataclasses import dataclass
 import io
-from typing import Callable, List, Any
+from collections.abc import Callable
+from dataclasses import dataclass
+from typing import Any
 
 from ngsindex import *
 
@@ -34,7 +35,7 @@ class ChunkTestDataSet:
     compressed: bool = False
 
 
-def sparse_list(size: int, factory: Callable, *args: Tuple[int, Any]) -> List:
+def sparse_list(size: int, factory: Callable, *args: tuple[int, Any]) -> list:
     sl = [factory(i) for i in range(size)]
     for idx, value in args:
         sl[idx] = value

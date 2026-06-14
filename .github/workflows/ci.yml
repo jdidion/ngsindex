@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # xphyle (a runtime dep) still imports pkg_resources, which setuptools
+        # 81+ dropped, and its transitive pokrok sdist does not build on
+        # Python 3.12+. Pin to 3.11 until that chain is modernized, then widen
+        # this matrix to 3.10-3.13.
+        python-version: ["3.11"]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # full history so setuptools-scm can resolve the version
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python ${{ matrix.python-version }}
+        run: uv python install ${{ matrix.python-version }}
+
+      - name: Sync dependencies
+        run: uv sync --python ${{ matrix.python-version }}
+
+      - name: Lint
+        run: uv run ruff check ngsindex tests
+
+      - name: Test
+        run: uv run pytest -m "not perf" --cov --cov-report term-missing
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v5
+      - name: Build sdist and wheel
+        run: uv build

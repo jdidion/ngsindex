@@ -4,19 +4,21 @@ Notes:
     This is a direct port of the parsers in biogo:
     https://github.com/biogo/hts/blob/master/tabix/tabix.go
 """
+
 from abc import ABCMeta, abstractmethod
+from collections.abc import Iterator, Sequence
 from enum import Enum
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
-from typing import Dict, Iterator, Optional, Sequence, Tuple, Type, Union, cast
+from typing import cast
 
 from ngsindex.utils import BinReader
 
-# pylint: disable=protected-access
-# noinspection PyProtectedMember
-from ngsindex._version import get_versions
-
-__version__ = get_versions()["version"]
-del get_versions
+try:
+    __version__ = version("ngsindex")
+except PackageNotFoundError:  # pragma: no cover
+    # package is not installed
+    __version__ = "unknown"
 
 
 METADATA_BIN_NUM = 37450
@@ -25,12 +27,11 @@ TERMINATOR = b"\x00"
 """Terminator character used in Index file."""
 
 
-Coordinates = Tuple[int, int]
+Coordinates = tuple[int, int]
 
 
 class MissingIndexError(Exception):
-    """The index file could not be resolved.
-    """
+    """The index file could not be resolved."""
 
     pass
 
@@ -49,14 +50,14 @@ class Offset:
 
     def __init__(
         self,
-        offset: Optional[int] = None,
-        file_offset: Optional[int] = None,
-        block_offset: Optional[int] = None,
+        offset: int | None = None,
+        file_offset: int | None = None,
+        block_offset: int | None = None,
     ) -> None:
         if offset is not None:
             self.offset = offset
             self.file_offset = offset >> 16
-            self.block_offset = offset & 0xffff
+            self.block_offset = offset & 0xFFFF
         elif file_offset is not None and block_offset is not None:
             self.file_offset = file_offset
             self.block_offset = block_offset
@@ -95,7 +96,7 @@ class Chunk:
         end: The bin end.
     """
 
-    def __init__(self, begin: Union[Offset, int], end: Union[Offset, int]) -> None:
+    def __init__(self, begin: Offset | int, end: Offset | int) -> None:
         if isinstance(begin, int):
             begin = Offset(begin)
         if isinstance(end, int):
@@ -103,7 +104,7 @@ class Chunk:
         self.begin = begin
         self.end = end
 
-    def as_tuple(self) -> Tuple[Coordinates, Coordinates]:
+    def as_tuple(self) -> tuple[Coordinates, Coordinates]:
         """Gets the chunk as a tuple.
 
         Returns:
@@ -130,9 +131,9 @@ class Bin:
 
     def __init__(
         self,
-        reader: Optional[BinReader] = None,
-        bin_num: Optional[int] = None,
-        chunks: Optional[Sequence[Chunk]] = None,
+        reader: BinReader | None = None,
+        bin_num: int | None = None,
+        chunks: Sequence[Chunk] | None = None,
     ) -> None:
         self.bin_num = bin_num
         self.chunks = chunks
@@ -151,8 +152,7 @@ class Bin:
 
     @property
     def num_chunks(self) -> int:
-        """The number of Chunks in this Bin.
-        """
+        """The number of Chunks in this Bin."""
         return len(self.chunks) if self.chunks else 0
 
     def __getitem__(self, index: int) -> Chunk:
@@ -192,10 +192,10 @@ class CsiBin(Bin):
 
     def __init__(
         self,
-        reader: Optional[BinReader] = None,
-        bin_num: Optional[int] = None,
-        first_record_offset: Optional[int] = None,
-        chunks: Optional[Sequence[Chunk]] = None,
+        reader: BinReader | None = None,
+        bin_num: int | None = None,
+        first_record_offset: int | None = None,
+        chunks: Sequence[Chunk] | None = None,
     ):
         self.first_record_offset = first_record_offset
         super().__init__(reader, bin_num, chunks)
@@ -219,8 +219,10 @@ class CsiBin(Bin):
         )
 
     def __repr__(self) -> str:
-        return f"CsiBin({self.bin_num}): Offset: {self.first_record_offset}, " \
-               f"Chunks={self.chunks}"
+        return (
+            f"CsiBin({self.bin_num}): Offset: {self.first_record_offset}, "
+            f"Chunks={self.chunks}"
+        )
 
 
 class RefIndex(metaclass=ABCMeta):
@@ -234,9 +236,9 @@ class RefIndex(metaclass=ABCMeta):
 
     def __init__(
         self,
-        reader: Optional[BinReader] = None,
-        reference_id: Optional[int] = None,
-        bins: Optional[Sequence[Bin]] = None,
+        reader: BinReader | None = None,
+        reference_id: int | None = None,
+        bins: Sequence[Bin] | None = None,
     ) -> None:
         self.reference_id = reference_id
         self.bins = bins
@@ -244,7 +246,7 @@ class RefIndex(metaclass=ABCMeta):
             self.read_from(reader)
 
     @classmethod
-    def empty(cls, reference_id: Optional[int] = None) -> "RefIndex":
+    def empty(cls, reference_id: int | None = None) -> "RefIndex":
         """Creates an empty RefIndex.
 
         Args:
@@ -266,8 +268,7 @@ class RefIndex(metaclass=ABCMeta):
 
     @property
     def num_bins(self) -> int:
-        """The number of Bins in this index.
-        """
+        """The number of Bins in this index."""
         return len(self.bins) if self.bins else 0
 
     @abstractmethod
@@ -283,7 +284,7 @@ class RefIndex(metaclass=ABCMeta):
         """
         pass  # pragma: no-cover
 
-    def iter_chunks(self) -> Iterator[Tuple[Bin, Chunk]]:
+    def iter_chunks(self) -> Iterator[tuple[Bin, Chunk]]:
         """Iterates over all chunks of all bins.
 
         Yields:
@@ -305,8 +306,7 @@ class RefIndex(metaclass=ABCMeta):
 
 
 class CsiRefIndex(RefIndex):
-    """RefIndex implementation for CSI index format.
-    """
+    """RefIndex implementation for CSI index format."""
 
     def read_bins(self, reader: BinReader, num_bins: int) -> Sequence[Bin]:
         return [CsiBin(reader) for _ in range(num_bins)]
@@ -324,16 +324,16 @@ class DualRefIndex(RefIndex):
 
     def __init__(
         self,
-        reader: Optional[BinReader] = None,
-        reference_id: Optional[int] = None,
-        bins: Optional[Sequence[Bin]] = None,
-        offsets: Optional[Sequence[Offset]] = None,
+        reader: BinReader | None = None,
+        reference_id: int | None = None,
+        bins: Sequence[Bin] | None = None,
+        offsets: Sequence[Offset] | None = None,
     ) -> None:
         self.intervals = offsets
         super().__init__(reader, reference_id, bins)
 
     @classmethod
-    def empty(cls, reference_id: Optional[int] = None) -> "DualRefIndex":
+    def empty(cls, reference_id: int | None = None) -> "DualRefIndex":
         """Creates an empty DualRefIndex.
 
         Args:
@@ -361,8 +361,7 @@ class DualRefIndex(RefIndex):
 
     @property
     def num_intervals(self) -> int:
-        """The number of intervals in the index.
-        """
+        """The number of intervals in the index."""
         return len(self.intervals) if self.intervals else 0
 
     def read_from(self, reader: BinReader) -> None:
@@ -383,8 +382,10 @@ class DualRefIndex(RefIndex):
 
     def __repr__(self) -> str:
         type_name = type(self).__name__
-        return f"{type_name}({self.reference_id}): Bins={self.bins}, " \
-               f"Intervals={self.intervals}"
+        return (
+            f"{type_name}({self.reference_id}): Bins={self.bins}, "
+            f"Intervals={self.intervals}"
+        )
 
 
 class BaiRefIndex(DualRefIndex):
@@ -402,12 +403,12 @@ class BaiRefIndex(DualRefIndex):
 
     def __init__(
         self,
-        reader: Optional[BinReader] = None,
-        reference_id: Optional[int] = None,
-        unmapped_begin: Optional[Coordinates] = None,
-        unmapped_end: Optional[Coordinates] = None,
-        num_mapped: Optional[int] = None,
-        num_unmapped: Optional[int] = None,
+        reader: BinReader | None = None,
+        reference_id: int | None = None,
+        unmapped_begin: Coordinates | None = None,
+        unmapped_end: Coordinates | None = None,
+        num_mapped: int | None = None,
+        num_unmapped: int | None = None,
         **kwargs,
     ) -> None:
         self.unmapped_begin = unmapped_begin
@@ -418,7 +419,7 @@ class BaiRefIndex(DualRefIndex):
 
     def read_bins(self, reader: BinReader, num_bins: int) -> Sequence[Bin]:
         bins = []
-        for i in range(num_bins):
+        for _ in range(num_bins):
             b = Bin(reader)
             if b.bin_num == METADATA_BIN_NUM:
                 self.unmapped_begin, self.unmapped_end = b.chunks[0].as_tuple()
@@ -438,9 +439,7 @@ class Index(metaclass=ABCMeta):
     """
 
     def __init__(
-        self,
-        reader: Optional[BinReader] = None,
-        version: Optional[int] = None
+        self, reader: BinReader | None = None, version: int | None = None
     ) -> None:
         self.version = version
         if reader:
@@ -460,15 +459,11 @@ class Index(metaclass=ABCMeta):
 
     @abstractmethod
     def summarize(self) -> dict:
-        """Summarize this index and return a dict that can be serialized to JSON.
-        """
+        """Summarize this index and return a dict that can be serialized to JSON."""
         pass
 
     def __eq__(self, other: "Index") -> bool:
-        return (
-            self.index_type() == other.index_type()
-            and self.version == other.version
-        )
+        return self.index_type() == other.index_type() and self.version == other.version
 
     def __repr__(self) -> str:
         type_name = self.index_type().name
@@ -488,11 +483,11 @@ class CoordinateIndex(Index):
 
     def __init__(
         self,
-        reader: Optional[BinReader] = None,
-        version: Optional[int] = None,
-        num_ref: Optional[int] = None,
-        ref_indexes: Optional[Sequence[RefIndex]] = None,
-        num_unmapped: Optional[int] = None,
+        reader: BinReader | None = None,
+        version: int | None = None,
+        num_ref: int | None = None,
+        ref_indexes: Sequence[RefIndex] | None = None,
+        num_unmapped: int | None = None,
     ) -> None:
         self._num_ref = num_ref
         self.ref_indexes = ref_indexes
@@ -501,8 +496,7 @@ class CoordinateIndex(Index):
 
     @property
     def num_ref(self) -> int:
-        """The number of reference sequences.
-        """
+        """The number of reference sequences."""
         if self._num_ref is None:
             if self.ref_indexes is not None:
                 self._num_ref = len(self.ref_indexes)
@@ -565,12 +559,8 @@ class CoordinateIndex(Index):
         pass  # pragma: no-cover
 
     def summarize(self) -> dict:
-        """Summarize this index and return a dict that can be serialized to JSON.
-        """
-        return {
-            "num_references": self.num_ref,
-            "num_unmapped": self.num_unmapped
-        }
+        """Summarize this index and return a dict that can be serialized to JSON."""
+        return {"num_references": self.num_ref, "num_unmapped": self.num_unmapped}
 
     def __eq__(self, other: "CoordinateIndex") -> bool:
         return (
@@ -614,7 +604,8 @@ class BaiIndex(CoordinateIndex):
         for ref_idx in self.ref_indexes:
             bai_ref_idx = cast(BaiRefIndex, ref_idx)
             summary["read_counts"][ref_idx.reference_id] = [
-                bai_ref_idx.num_mapped, bai_ref_idx.num_unmapped
+                bai_ref_idx.num_mapped,
+                bai_ref_idx.num_unmapped,
             ]
         return summary
 
@@ -643,15 +634,15 @@ class TbiIndex(CoordinateIndex):
 
     def __init__(
         self,
-        file_format: Optional[int] = None,
-        col_seq: Optional[int] = None,
-        col_begin: Optional[int] = None,
-        col_end: Optional[int] = None,
-        meta: Optional[int] = None,
-        skip: Optional[int] = None,
-        ref_names: Optional[Sequence[str]] = None,
-        name_map: Optional[Dict[str, int]] = None,
-        **kwargs
+        file_format: int | None = None,
+        col_seq: int | None = None,
+        col_begin: int | None = None,
+        col_end: int | None = None,
+        meta: int | None = None,
+        skip: int | None = None,
+        ref_names: Sequence[str] | None = None,
+        name_map: dict[str, int] | None = None,
+        **kwargs,
     ) -> None:
         self.file_format = file_format
         self.col_seq = col_seq
@@ -703,26 +694,22 @@ class TbiIndex(CoordinateIndex):
 
     @property
     def is_sam(self) -> bool:
-        """Whether this is an index for a SAM/BAM file.
-        """
+        """Whether this is an index for a SAM/BAM file."""
         return self.file_format == 1
 
     @property
     def is_vcf(self) -> bool:
-        """Whether this is an index for a VCF/BCF file.
-        """
+        """Whether this is an index for a VCF/BCF file."""
         return self.file_format == 2
 
     @property
     def is_zero_based(self) -> bool:
-        """Whether the coordinates in this index are zero-based.
-        """
+        """Whether the coordinates in this index are zero-based."""
         return (self.file_format & 0x10000) != 0
 
     @property
     def meta_char(self) -> str:
-        """The meta character as a string.
-        """
+        """The meta character as a string."""
         return chr(self.meta)
 
     def __eq__(self, other: "TbiIndex") -> bool:
@@ -758,10 +745,10 @@ class CsiIndex(CoordinateIndex):
 
     def __init__(
         self,
-        min_shift: Optional[int] = None,
-        depth: Optional[int] = None,
-        aux: Optional[Sequence[int]] = None,
-        **kwargs
+        min_shift: int | None = None,
+        depth: int | None = None,
+        aux: Sequence[int] | None = None,
+        **kwargs,
     ) -> None:
         self.min_shift = min_shift
         self.depth = depth
@@ -806,14 +793,14 @@ class SbiIndex(Index):
 
     def __init__(
         self,
-        file_length: Optional[int] = None,
-        md5: Optional[bytes] = None,
-        uuid: Optional[bytes] = None,
-        num_records: Optional[int] = None,
-        granularity: Optional[int] = None,
-        num_offsets: Optional[int] = None,
-        offsets: Optional[Sequence[Offset]] = None,
-        **kwargs
+        file_length: int | None = None,
+        md5: bytes | None = None,
+        uuid: bytes | None = None,
+        num_records: int | None = None,
+        granularity: int | None = None,
+        num_offsets: int | None = None,
+        offsets: Sequence[Offset] | None = None,
+        **kwargs,
     ):
         self.file_length = file_length
         self.md5 = md5
@@ -834,23 +821,19 @@ class SbiIndex(Index):
         self.granularity = reader.read_ull()
         self.num_offsets = reader.read_ull()
 
-        self.offsets = [
-            Offset(offset)
-            for offset in reader.read_ulls(self.num_offsets)
-        ]
+        self.offsets = [Offset(offset) for offset in reader.read_ulls(self.num_offsets)]
 
     def summarize(self) -> dict:
         return {
             "file_length": self.file_length,
             "num_records": self.num_records,
             "granularity": self.granularity,
-            "num_offsets": self.num_offsets
+            "num_offsets": self.num_offsets,
         }
 
 
 class IndexType(Enum):
-    """Enumeration of supported index types.
-    """
+    """Enumeration of supported index types."""
 
     BAI = "BAI", BaiIndex
     CSI = "CSI", CsiIndex
@@ -862,7 +845,7 @@ class IndexType(Enum):
         return self.value[0]
 
     @property
-    def index_class(self) -> Type[CoordinateIndex]:
+    def index_class(self) -> type[CoordinateIndex]:
         return self.value[1]
 
     @staticmethod
@@ -898,9 +881,12 @@ def resolve_and_parse_index(primary_file: Path, index_type: IndexType) -> Index:
 
 
 def resolve_index_file(
-    primary_file: Path, index_type: Optional[IndexType] = None,
-    index_file: Optional[Path] = None, error: bool = False, create: bool = False
-) -> Union[Path, None]:
+    primary_file: Path,
+    index_type: IndexType | None = None,
+    index_file: Path | None = None,
+    error: bool = False,
+    create: bool = False,
+) -> Path | None:
     """Resolve the path of an index file that accompanies `primary_file`.
 
     Args:
@@ -920,14 +906,14 @@ def resolve_index_file(
         if index_type:
             index_file = Path(f"{str(primary_file)}.{index_type.name.lower()}")
         else:
-            raise ValueError(
-                "'index_type' must be specified if 'index_file' is None"
-            )
+            raise ValueError("'index_type' must be specified if 'index_file' is None")
     if not index_file.exists() and create:
         try:
             import pysam
+
             pysam.index(str(index_file))
-        except:
+        except Exception:
+            # Best-effort: pysam may be missing or unable to index this file.
             pass
     if not index_file.exists():
         if error:
@@ -938,7 +924,7 @@ def resolve_index_file(
 
 
 def parse_index(
-    path: Optional[Path] = None, index_type: Optional[IndexType] = None, **kwargs
+    path: Path | None = None, index_type: IndexType | None = None, **kwargs
 ) -> Index:
     """Parse an index file and return an `Index` subclass.
 
@@ -956,8 +942,8 @@ def parse_index(
         magic = reader.read_string(3, True)
         try:
             detected_type = IndexType.from_name(magic)
-        except ValueError:
-            raise ValueError(f"Unsupported index type: {magic}")
+        except ValueError as err:
+            raise ValueError(f"Unsupported index type: {magic}") from err
 
         if index_type not in (None, detected_type):
             raise ValueError(

@@ -1,64 +1,38 @@
-module = ngsindex
-#pytestops = "--full-trace"
-#pytestops = "-v -s"
-repo = jdidion/$(module)
-desc = Release $(version)
-tests = tests
-desc = ''
-# Use this option to show full stack trace for errors
-#pytestopts = "--full-trace"
+.PHONY: all install test lint format build clean release
 
-BUILD = python setup.py install --force
-TEST  = py.test -m "not perf" -vv --cov --cov-report term-missing $(pytestopts) $(tests)
+# Modern uv-based workflow. Trunk branch is `main`; versions come from git tags
+# via setuptools-scm (no manual version bumps).
 
-all:
-	$(BUILD)
-	$(TEST)
+all: lint test
 
 install:
-	$(BUILD)
+	uv sync
 
 test:
-	$(TEST)
+	uv run pytest -m "not perf" --cov --cov-report term-missing
 
 perftest:
-	py.test -m "perf" $(tests)
-
-clean:
-	rm -Rf __pycache__
-	rm -Rf **/__pycache__/*
-	rm -Rf dist
-	rm -Rf build
-	rm -Rf *.egg-info
-	rm -Rf .pytest_cache
-	rm -Rf .coverage
-
-
-release:
-	$(clean)
-	# tag
-	git tag $(version)
-	# build
-	$(BUILD)
-	$(TEST)
-	python setup.py sdist bdist_wheel
-	# release
-	python setup.py sdist upload -r pypi
-	# push new tag after successful build
-	git push origin --tags
-	# create release in GitHub
-	curl -v -i -X POST \
-		-H "Content-Type:application/json" \
-		-H "Authorization: token $(token)" \
-		https://api.github.com/repos/$(repo)/releases \
-		-d '{"tag_name":"$(version)","target_commitish": "master","name": "$(version)","body": "$(desc)","draft": false,"prerelease": false}'
-
-docs:
-	make -C docs api
-	make -C docs html
-
-readme:
-	pandoc --from=markdown --to=rst --output=README.rst README.md
+	uv run pytest -m "perf"
 
 lint:
-	pylint $(module)
+	uv run ruff check ngsindex tests
+
+format:
+	uv run ruff format ngsindex tests
+	uv run ruff check --fix ngsindex tests
+
+build:
+	uv build
+
+clean:
+	rm -rf build dist *.egg-info .pytest_cache .ruff_cache htmlcov
+	rm -f .coverage coverage.xml
+	find . -name '__pycache__' -type d -prune -exec rm -rf {} +
+
+# Release: tag the commit, then build + publish.
+#   make release version=0.2.0
+release: clean
+	git tag $(version)
+	uv build
+	uv run pytest -m "not perf"
+	@echo "Built dist/. Publish with: uv publish  (and: git push origin $(version))"

@@ -1,0 +1,95 @@
+[build-system]
+requires = ["setuptools>=64", "setuptools-scm>=8"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ngsindex"
+dynamic = ["version"]
+description = "Utilities for working with NGS index formats."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [
+    { name = "John Didion", email = "github@didion.net" },
+]
+keywords = ["bioinformatics", "ngs", "bam", "bai", "tbi", "csi", "index"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+dependencies = [
+    "xphyle>=4.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/jdidion/ngsindex"
+Repository = "https://github.com/jdidion/ngsindex"
+Changelog = "https://github.com/jdidion/ngsindex/blob/main/CHANGES.md"
+
+[project.scripts]
+summarize-index = "ngsindex.cli:summarize"
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "pytest-cov>=5",
+    "pytest-datadir>=1.5",
+    "ruff>=0.6",
+    # The pinned xphyle release still imports pkg_resources at runtime, which
+    # setuptools 81+ no longer ships. Keep a compatible setuptools in the dev
+    # env until xphyle is modernized. Remove once xphyle drops pkg_resources.
+    "setuptools<81",
+]
+
+[tool.setuptools]
+packages = ["ngsindex"]
+
+[tool.setuptools_scm]
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]
+ignore = [
+    "B027",  # empty method in abstract base class (intentional default no-op)
+]
+
+[tool.ruff.lint.per-file-ignores]
+# The biogo-ported test modules use `from ngsindex import *` and contain very
+# long hard-coded binary fixtures.
+"**/tests/**" = ["E501", "F403", "F405", "B007"]
+"**/test_*.py" = ["E501", "F403", "F405", "B007"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+markers = [
+    "perf: performance tests (deselect with '-m \"not perf\"')",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["ngsindex"]
+omit = [
+    "tests/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "pragma: no-cover",
+    "def __repr__",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "@(abc\\.)?abstractmethod",
+]

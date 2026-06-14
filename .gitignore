@@ -1,11 +1,19 @@
 .cache
 .coverage
+coverage.xml
+htmlcov/
 build/
 dist/
 *.pyc
-ngsindex.egg-info/
+__pycache__/
+*.egg-info/
+.eggs/
 docs/_build/
 .vscode*
 .mypy_cache/
+.ruff_cache/
 .idea/
 .pytest_cache/
+.venv/
+# oh-my-claudecode scratch
+.omc/

@@ -1,36 +1,56 @@
 """Test cases ported from biogo:
 https://github.com/biogo/hts/blob/master/bam/bam_test.go
 """
-import pytest
+
 import gzip
 import io
 
-from . import IndexTestData, ChunkTestData, ChunkTestDataSet
+import pytest
+
 from ngsindex import (
-    Offset, Bin, Chunk, CsiRefIndex, BaiRefIndex, DualRefIndex,
-    CoordinateIndex, BaiIndex, CsiIndex, TbiIndex, MissingIndexError, IndexType,
-    resolve_index_file, parse_index
+    BaiIndex,
+    BaiRefIndex,
+    Bin,
+    Chunk,
+    CoordinateIndex,
+    CsiIndex,
+    CsiRefIndex,
+    DualRefIndex,
+    IndexType,
+    MissingIndexError,
+    Offset,
+    TbiIndex,
+    parse_index,
+    resolve_index_file,
 )
+
+from . import ChunkTestData, ChunkTestDataSet, IndexTestData
 
 
 def test_resolve(datadir):
-    assert resolve_index_file(datadir / 'small.bam', IndexType.BAI) == \
-        datadir / 'small.bam.bai'
-    assert resolve_index_file(datadir / 'small.vcf.gz', IndexType.CSI) == \
-        datadir / 'small.vcf.gz.csi'
-    assert resolve_index_file(datadir / 'small.vcf.gz', IndexType.TBI) == \
-        datadir / 'small.vcf.gz.tbi'
-    assert resolve_index_file(datadir / 'small.bam', IndexType.TBI, error=False) is None
+    assert (
+        resolve_index_file(datadir / "small.bam", IndexType.BAI)
+        == datadir / "small.bam.bai"
+    )
+    assert (
+        resolve_index_file(datadir / "small.vcf.gz", IndexType.CSI)
+        == datadir / "small.vcf.gz.csi"
+    )
+    assert (
+        resolve_index_file(datadir / "small.vcf.gz", IndexType.TBI)
+        == datadir / "small.vcf.gz.tbi"
+    )
+    assert resolve_index_file(datadir / "small.bam", IndexType.TBI, error=False) is None
     with pytest.raises(MissingIndexError):
-        resolve_index_file(datadir / 'small.bam', IndexType.TBI, error=True)
+        resolve_index_file(datadir / "small.bam", IndexType.TBI, error=True)
 
 
 def test_parse(datadir):
-    bai_file = resolve_index_file(datadir / 'small.bam', IndexType.BAI)
+    bai_file = resolve_index_file(datadir / "small.bam", IndexType.BAI)
     assert isinstance(parse_index(bai_file), BaiIndex)
-    csi_file = resolve_index_file(datadir / 'small.vcf.gz', IndexType.CSI)
+    csi_file = resolve_index_file(datadir / "small.vcf.gz", IndexType.CSI)
     assert isinstance(parse_index(csi_file), CsiIndex)
-    tbi_file = resolve_index_file(datadir / 'small.vcf.gz', IndexType.TBI)
+    tbi_file = resolve_index_file(datadir / "small.vcf.gz", IndexType.TBI)
     assert isinstance(parse_index(tbi_file), TbiIndex)
     with pytest.raises(ValueError):
         parse_index(bai_file, IndexType.CSI)
@@ -42,12 +62,12 @@ def test_offset():
 
     offset = Offset(file_offset=98, block_offset=7)
     assert offset.offset == 6422535
-    assert str(offset) == 'Offset(98, 7)'
+    assert str(offset) == "Offset(98, 7)"
 
     offset = Offset(6422535)
     assert offset.file_offset == 98
     assert offset.block_offset == 7
-    assert str(offset) == 'Offset(98, 7)'
+    assert str(offset) == "Offset(98, 7)"
 
 
 def test_bin():
@@ -56,7 +76,7 @@ def test_bin():
     _bin = Bin(bin_num=1, chunks=[chunk])
     assert _bin.num_chunks == 1
     assert _bin[0] == chunk
-    assert str(_bin) == 'Bin(1): Chunks=[Chunk((98, 7), (98, 7))]'
+    assert str(_bin) == "Bin(1): Chunks=[Chunk((98, 7), (98, 7))]"
 
 
 def test_bam_ref_index():
@@ -104,7 +124,7 @@ def test_parse_tbi(test_tbi_index_data: IndexTestData):
     assert not tbi.is_sam
     assert tbi.is_vcf
     assert not tbi.is_zero_based
-    assert tbi.meta_char == '#'
+    assert tbi.meta_char == "#"
 
 
 def _test_parse(index_data: IndexTestData):
@@ -119,7 +139,7 @@ def _test_parse(index_data: IndexTestData):
 
 def _test_chunk(index: CoordinateIndex, test_data: ChunkTestData):
     ref = index[test_data.ref_index]
-    actual = list(ref.iter_chunks())[test_data.begin:test_data.end]
+    actual = list(ref.iter_chunks())[test_data.begin : test_data.end]
     if actual is None and test_data.expect is None:
         return
     assert actual == test_data.expect
@@ -150,7 +170,7 @@ def _test_chunk_set(test_data_set: ChunkTestDataSet):
 #            pytest._test_chunk_set(test_data)
 
 
-KB = 2 ** 10
+KB = 2**10
 
 
 # Build a mock index

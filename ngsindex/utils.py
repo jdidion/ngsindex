@@ -1,12 +1,12 @@
-"""Supporting classes.
-"""
+"""Supporting classes."""
+
 import os
+from collections.abc import Sequence
 from pathlib import Path
 from struct import Struct
-from typing import Sequence, Tuple, Union, Optional, Any, cast
+from typing import Any, cast
 
 from xphyle import xopen
-
 
 STRUCT_TYPES = dict(
     char=("c", 1),
@@ -44,7 +44,7 @@ class DefaultDict(dict):
     def __init__(
         self,
         *args,
-        default: Optional[Any] = None,
+        default: Any | None = None,
         pass_key_as_arg: bool = False,
         **kwargs,
     ) -> None:
@@ -91,7 +91,7 @@ class BinReader:
     """
 
     def __init__(
-        self, path: Optional[Path] = None, byte_order: str = "@", fileobj=None
+        self, path: Path | None = None, byte_order: str = "@", fileobj=None
     ) -> None:
         if not (path or fileobj):
             raise ValueError("'path' or 'fileobj' must be provided")
@@ -118,16 +118,14 @@ class BinReader:
         return self._reader is not None
 
     def open(self) -> None:
-        """Opens the reader.
-        """
+        """Opens the reader."""
         self._reader = xopen(self.path, "rb", context_wrapper=True)
 
     def __exit__(self, exception_type, exception_value, traceback):
         self.close()
 
     def close(self) -> None:
-        """Closes the reader.
-        """
+        """Closes the reader."""
         if self._reader:
             if self._close:
                 self._reader.close()
@@ -149,10 +147,10 @@ class BinReader:
     def skip(self, n: int):
         """Move forward `n` bytes without reading."""
         self._reader.seek(n, os.SEEK_CUR)
-    
+
     def read_string(
-        self, strlen: int, encoding: Optional[Union[bool, str]] = None
-    ) -> Union[str, bytes]:
+        self, strlen: int, encoding: bool | str | None = None
+    ) -> str | bytes:
         """Reads `strlen` bytes and returns either a byte or character string.
 
         Args:
@@ -167,10 +165,10 @@ class BinReader:
 
     def read_strings(
         self,
-        size: Optional[Union[int, Sequence[int]]] = None,
-        n: Optional[int] = None,
-        encoding: Optional[str] = None,
-    ) -> Sequence[Union[str, bytes]]:
+        size: int | Sequence[int] | None = None,
+        n: int | None = None,
+        encoding: str | None = None,
+    ) -> Sequence[str | bytes]:
         """Convenience method for reading multiple strings.
 
         Args:
@@ -199,7 +197,7 @@ class BinReader:
         return strings
 
     @staticmethod
-    def decode(bytestr: bytes, encoding: Union[bool, str] = True) -> Union[str, bytes]:
+    def decode(bytestr: bytes, encoding: bool | str = True) -> str | bytes:
         """Decode `bytes`.
 
         Args:
@@ -228,9 +226,9 @@ class BinReader:
             A tuple of values.
         """
         fmt, size = STRUCT_TYPES.get(type_, (type_, 1))
-        return self.read_struct("{}{}{}".format(self.byte_order, n, fmt), size * n)
+        return self.read_struct(f"{self.byte_order}{n}{fmt}", size * n)
 
-    def read_vector(self, types: Sequence[Tuple[str, int]]) -> Sequence:
+    def read_vector(self, types: Sequence[tuple[str, int]]) -> Sequence:
         """Read multiple consecutive values, which may be of different types,
         and return them in a tuple.
 
@@ -242,7 +240,7 @@ class BinReader:
         """
         return self.read_vectors(types, n=1)[0]
 
-    def read_vectors(self, types: Sequence[Tuple[str, int]], n: int) -> Sequence:
+    def read_vectors(self, types: Sequence[tuple[str, int]], n: int) -> Sequence:
         """Read `n` vectors.
 
         Args:
@@ -256,7 +254,7 @@ class BinReader:
         nbytes = 0
         for type_name, type_n in types:
             fmt, size = STRUCT_TYPES.get(type_name, (type_name, 1))
-            formats.append("{}{}{}".format(self.byte_order, type_n, fmt))
+            formats.append(f"{self.byte_order}{type_n}{fmt}")
             nbytes += size * type_n
         return self.read_structs("".join(formats), nbytes, n)
 
@@ -298,6 +296,6 @@ class BinReader:
         if len(bytestr) < total:
             raise EOFError()
         return [
-            self._struct_cache[fmt].unpack(bytestr[i:(i + nbytes)])
+            self._struct_cache[fmt].unpack(bytestr[i : (i + nbytes)])
             for i in range(0, total, nbytes)
         ]
